@@ -1,7 +1,8 @@
-#python -m uvicorn API:app --reload --host 127.0.0.1 --port 8001
+# --- API.py с новым /predict ---
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -45,11 +46,12 @@ df = None
 models = {}
 X_train = X_val = y_train = y_val = None
 X_scaled = y_all = None
+scaler = None
 selected_features = ["gravity", "ph"]
 
 @app.on_event("startup")
 def train_models():
-    global df, X_train, X_val, y_train, y_val, X_scaled, y_all, models
+    global df, X_train, X_val, y_train, y_val, X_scaled, y_all, models, scaler
 
     df = pd.read_csv("data/train.csv")
     X = df[selected_features].values
@@ -157,3 +159,24 @@ def get_boundaries():
         "X": X_scaled.tolist(),
         "y": y_all.tolist()
     }
+
+# --- Новый эндпоинт для предсказания ---
+class InputParams(BaseModel):
+    gravity: float
+    ph: float
+
+@app.post("/predict")
+def predict(input: InputParams):
+    sample = np.array([[input.gravity, input.ph]])
+    sample_scaled = scaler.transform(sample)
+
+    predictions = {}
+    for name, model in models.items():
+        pred = model.predict(sample_scaled)[0]
+        prob = model.predict_proba(sample_scaled)[0][1] if hasattr(model, "predict_proba") else None
+        predictions[name] = {
+            "prediction": int(pred),
+            "probability": float(prob) if prob is not None else None
+        }
+
+    return predictions

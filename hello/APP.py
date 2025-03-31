@@ -12,9 +12,32 @@ API_URL = "http://127.0.0.1:8001"
 #st.set_page_config(layout="wide")
 st.title("Анализ данных и машинное обучение")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
-    ["Об программе", "Датасет", "EDA", "Результаты моделей", "Визуализация моделей"]
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    ["Об программе", "Датасет", "EDA", "Результаты моделей", "Визуализация моделей", "Предсказание"]
 )
+
+# --- TAB 6 ---
+with tab6:
+    st.header("Сделать предсказание по параметрам")
+    gravity = st.number_input("Введите значение gravity", min_value=0.0, max_value=2.0, step=0.01, value=1.01)
+    ph = st.number_input("Введите значение ph", min_value=0.0, max_value=14.0, step=0.01, value=6.5)
+
+    if st.button("Предсказать"):
+        try:
+            payload = {"gravity": gravity, "ph": ph}
+            response = requests.post(f"{API_URL}/predict", json=payload)
+            result = response.json()
+
+            st.subheader("Результаты предсказания моделей")
+            for model_name, output in result.items():
+                prob = output["probability"]
+                if prob is not None:
+                    st.write(f"**{model_name}**: Класс = {output['prediction']}, Вероятность = {prob:.2f}")
+                else:
+                    st.write(f"**{model_name}**: Класс = {output['prediction']} (вероятность не поддерживается)")
+        except Exception as e:
+            st.error(f"Ошибка предсказания: {e}")
+
 
 # 1. Об программе
 with tab1:
